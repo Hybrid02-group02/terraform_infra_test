@@ -1,0 +1,18 @@
+# Terraform 상태 파일
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+*.backup
+*.log
+
+# 민감 정보 포함된 파일 (개인 키, 인증서 등)
+*.pem
+*.key
+*.crt
+
+# vscode 설정 등 개발환경 설정파일 제외 (선택적)
+.vscode/
+.idea/
+
+
