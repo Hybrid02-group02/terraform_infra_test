@@ -57,3 +57,11 @@ variable "route53_domain_name" {
 variable "route53_record_name" {
   default = "naddong.shop"  # 또는 "app.naddong.shop" 등 서브도메인을 원하면 변경
 }
+
+# EKS Variables
+variable "cluster_name" {
+  description = "EKS Cluster Name"
+  type        = string
+}
+
+
