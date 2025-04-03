@@ -1,12 +1,12 @@
-project_name         = "myproject-dev"
-environment          = "myproject-dev"
+project_name         = "project02"
+environment          = "project02"
 
 ami_id               = "ami-0a463f27534bdf246"  #  실제 AWS 계정에 존재하는 AMI ID로 바꿔야 함
 key_name             = "my-keypair"             #  AWS에 등록된 키 페어 이름
 instance_type        = "t3.micro"
 
-route53_zone_id      = "Z123456789ABCDEFG" # 실제 hosted zone id 입력
-route53_domain_name  = "dev.example.com" # 실제 도메인 이름 입력
+route53_domain_name  = "naddong.shop"      # 실제 도메인 이름 입력
+route53_record_name  = "naddong.shop"
 
 vpc_cidr             = "10.0.0.0/16"
 

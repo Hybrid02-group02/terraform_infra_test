@@ -44,12 +44,16 @@ variable "azs" {
   type        = list(string)
 }
 
-#variable "route53_zone_id" {
+# variable "route53_zone_id" {
 #  description = "The ID of the Route 53 Hosted Zone"
 #  type        = string
-#}
+# }
 
-#variable "route53_domain_name" {
-#  description = "Base domain name (e.g. dev.example.com)"
-#  type        = string
-#}
+variable "route53_domain_name" {
+ description = "Base domain name (e.g. dev.example.com)"
+ type        = string
+}
+
+variable "route53_record_name" {
+  default = "naddong.shop"  # 또는 "app.naddong.shop" 등 서브도메인을 원하면 변경
+}

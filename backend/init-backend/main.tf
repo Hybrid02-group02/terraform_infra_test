@@ -1,21 +1,6 @@
-provider "aws" {
-  region = var.aws_region
-}
-
+# S3 버킷 생성
 resource "aws_s3_bucket" "tf_backend" {
   bucket = var.backend_bucket_name
-
-  versioning {
-    enabled = true
-  }
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
-      }
-    }
-  }
 
   lifecycle {
     prevent_destroy = true
@@ -24,6 +9,25 @@ resource "aws_s3_bucket" "tf_backend" {
   tags = {
     Name        = "Terraform State Bucket"
     Environment = "dev"
+  }
+}
+
+# S3 버전 관리 설정
+resource "aws_s3_bucket_versioning" "tf_backend_versioning" {
+  bucket = aws_s3_bucket.tf_backend.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# 서버사이드 암호화 설정
+resource "aws_s3_bucket_server_side_encryption_configuration" "tf_backend_encryption" {
+  bucket = aws_s3_bucket.tf_backend.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
   }
 }
 

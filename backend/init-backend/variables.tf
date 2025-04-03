@@ -3,7 +3,7 @@ variable "aws_region" {
 }
 
 variable "backend_bucket_name" {
-  default = "my-terraform-backend-bucket-20250402"
+  default = "project02-terraform-state-bucket"
 }
 
 variable "dynamodb_table_name" {

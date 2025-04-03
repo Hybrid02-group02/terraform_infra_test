@@ -56,8 +56,12 @@ module "ec2" {
   security_group_ids  = [aws_security_group.ec2_sg.id]
   key_name            = var.key_name
   associate_public_ip = true
-  user_data           = file("${path.module}/user_data.sh")
+  user_data           = file("./user_data.sh")
   environment         = var.environment
+
+  # Target Group 등록
+  target_group_arn = module.alb.target_group_arn
+  target_port      = 80
 }
 
 # S3
@@ -113,17 +117,17 @@ module "alb" {
   internal                  = false
 }
 
-# route 53
-#module "route53" {
-#  source = "../../modules/route53"
 
-#  zone_id             = var.route53_zone_id                       # Route 53 Hosted Zone ID
-#  record_name         = "app.${var.route53_domain_name}"          # 예: app.dev.example.com
-#  record_type         = "A"
-#  ttl                 = 300
-#  alb_dns_name        = module.alb.alb_dns_name
-#  depends_on_resource = module.alb
-#}
+# route 53
+module "route53" {
+  source      = "../../modules/route53"
+  
+  domain_name  = var.route53_domain_name            # 가비아에서 등록한 도메인
+  alb_dns_name = module.alb.alb_dns_name            # ALB DNS 이름
+  alb_zone_id  = module.alb.alb_zone_id             # ALB Hosted Zone ID
+
+  depends_on = [module.alb]
+}
 
 # waf
 module "waf" {

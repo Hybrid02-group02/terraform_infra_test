@@ -51,3 +51,12 @@ variable "environment" {
   type        = string
 }
 
+variable "target_group_arn" {
+  description = "ARN of the target group to attach the EC2 instance"
+  type        = string
+}
+
+variable "target_port" {
+  description = "Port on which the instance should receive traffic"
+  type        = number
+}

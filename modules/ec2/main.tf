@@ -14,3 +14,10 @@ resource "aws_instance" "main" { # EC2 인스턴스 생성
   }
 }
 
+resource "aws_lb_target_group_attachment" "main" {
+  target_group_arn = var.target_group_arn
+  target_id        = aws_instance.main.id
+  port            = var.target_port
+}
+
+
