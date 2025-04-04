@@ -14,14 +14,6 @@ output "nat_gateway_id" {
   value = module.vpc.nat_gateway_id
 }
 
-# output "ec2_instance_id" {
-#   value = module.ec2.instance_id
-# }
-
-# output "ec2_public_ip" {
-#   value = module.ec2.public_ip
-# }
-
 output "s3_bucket_id" {
   value = module.s3.bucket_id
 }
@@ -42,13 +34,4 @@ output "waf_arn" {
 #  value = module.route53.record_fqdn
 #}
 
-output "eks_cluster_id" {
-  description = "EKS Cluster ID"
-  value       = module.eks.cluster_id
-}
-
-output "eks_cluster_endpoint" {
-  description = "EKS Cluster Endpoint"
-  value       = module.eks.cluster_endpoint
-}
 

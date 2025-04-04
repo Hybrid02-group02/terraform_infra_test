@@ -45,35 +45,21 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# EC2 인스턴스
-# module "ec2" {
-#   source              = "../../modules/ec2"
-#   project_name        = var.project_name
-#   name                = "webserver"
-#   ami_id              = var.ami_id
-#   instance_type       = var.instance_type
-#   subnet_id           = module.vpc.public_subnet_ids[0]
-#   security_group_ids  = [aws_security_group.ec2_sg.id]
-#   key_name            = var.key_name
-#   associate_public_ip = true
-#   user_data           = file("./user_data.sh")
-#   environment         = var.environment
-
-#   # Target Group 등록
-#   target_group_arn = module.alb.target_group_arn
-#   target_port      = 80
-# }
-
-# eks 클러스터 생성
-module "eks" {
-  source             = "../../modules/eks"
-  vpc_id             = module.vpc.vpc_id 
+# ROSA
+module "rosa" {
+  source             = "../../modules/rosa"
   cluster_name       = var.cluster_name
-  private_subnet_ids = module.vpc.private_subnet_ids
-  instance_types     = ["t2.micro"]
-  desired_capacity   = 2
-  min_size           = 1
-  max_size           = 3
+  region             = var.region
+  rosa_subnet_ids    = module.vpc.private_subnet_ids
+  ec2_subnet_id      = module.vpc.public_subnet_ids[0]
+  vpc_id             = module.vpc.vpc_id
+  vpc_cidr           = var.vpc_cidr
+  instance_type      = var.rosa_instance_type
+  key_name           = var.key_name
+  enable_autoscaling = var.enable_autoscaling
+  min_replicas       = 2
+  max_replicas       = 4
+  rosa_token         = var.rosa_token
 }
 
 
