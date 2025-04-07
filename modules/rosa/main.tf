@@ -9,92 +9,83 @@ terraform {
   }
 }
 
-# IAM 역할 리소스: ROSA 클러스터 관리에 필요한 IAM 역할 설정
-resource "aws_iam_role" "rosa_role" {
-  name = "${var.cluster_name}-rosa-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Service = "rosa.openshift.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-}
-
-# IAM 역할에 필요한 정책들을 각각 연결
-resource "aws_iam_role_policy_attachment" "rosa_installer" {
-  policy_arn = "arn:aws:iam::aws:policy/ROSAInstallerPolicy"
-  role       = aws_iam_role.rosa_role.name
-}
-
-resource "aws_iam_role_policy_attachment" "rosa_control_plane" {
-  policy_arn = "arn:aws:iam::aws:policy/ROSAControlPlaneOperatorPolicy"
-  role       = aws_iam_role.rosa_role.name
-}
-
-resource "aws_iam_role_policy_attachment" "rosa_ingress" {
-  policy_arn = "arn:aws:iam::aws:policy/ROSAIngressOperatorPolicy"
-  role       = aws_iam_role.rosa_role.name
-}
-
-resource "aws_iam_role_policy_attachment" "rosa_node_pool" {
-  policy_arn = "arn:aws:iam::aws:policy/ROSANodePoolManagementPolicy"
-  role       = aws_iam_role.rosa_role.name
-}
-
-resource "aws_iam_role_policy_attachment" "rosa_manage_subscription" {
-  policy_arn = "arn:aws:iam::aws:policy/ROSAManageSubscription"
-  role       = aws_iam_role.rosa_role.name
-}
-
-# resource "rosa_cluster" "rosa" {
-#   name        = var.cluster_name
-#   region      = var.region
-#   vpc_id      = var.vpc_id
-#   subnet_ids  = var.rosa_subnet_ids
-#   version     = "4.9"  # 원하는 OpenShift 버전
-
-#   node_pool {
-#     name            = "node-pool"
-#     instance_type   = var.instance_type
-#     size            = var.min_replicas
-#     min_replicas    = var.min_replicas
-#     max_replicas    = var.max_replicas
-#     enable_autoscaling = var.enable_autoscaling
-#   }
-# }
-
 # OpenShift 클러스터 리소스: ROSA 클러스터를 Terraform을 통해 생성
 resource "null_resource" "create_rosa_cluster" {
   depends_on = [
     null_resource.install_rosa_cli,  # rosa_cli 설치 후 실행됨
     null_resource.rosa_init,  # rosa_init이 완료된 후 실행됨
-    aws_iam_role.rosa_role,
-    aws_iam_role_policy_attachment.rosa_installer,
-    aws_iam_role_policy_attachment.rosa_control_plane,
-    aws_iam_role_policy_attachment.rosa_ingress,
-    aws_iam_role_policy_attachment.rosa_node_pool,
-    aws_iam_role_policy_attachment.rosa_manage_subscription
+    null_resource.fetch_oidc_config_id,  # oidc config ID가 준비된 후 실행됨
   ]
+  
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+
   provisioner "local-exec" {
     command = <<EOT
-      rosa create cluster --cluster-name=${var.cluster_name} \
-      --region=${var.region} \
-      --subnet-ids=${join(",", var.rosa_subnet_ids)} \
-      --multi-az \
-      --machine-cidr=${var.vpc_cidr} \
-      --replicas=${var.min_replicas} \
-      --compute-machine-type=${var.instance_type} \
-      --watch
+      rosa login --token=${var.rosa_token}
+      oidc_id=$(cat ${var.oidc_config_path})
+
+      if ! rosa describe cluster -c ${var.cluster_name} &> /dev/null; then
+        echo "▶ Creating new ROSA cluster..."
+        rosa create cluster --hosted-cp \
+          --cluster-name=${var.cluster_name} \
+          --region=${var.region} \
+          --subnet-ids=${join(",", var.rosa_subnet_ids)} \
+          --machine-cidr=${var.vpc_cidr} \
+          --replicas=${var.min_replicas} \
+          --compute-machine-type=${var.instance_type} \
+          --oidc-config-id=$oidc_id \
+          --yes
+      else
+        echo "▶ ROSA cluster '${var.cluster_name}' already exists. Skipping creation."
+      fi
     EOT
   }
 }
+
+# operator-roles 생성
+resource "null_resource" "create_operator_roles" {
+  depends_on = [
+    null_resource.create_rosa_cluster
+  ]
+
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      rosa login --token=${var.rosa_token}
+
+      echo "▶ Waiting until cluster is in 'waiting' state..."
+      for i in {1..20}; do
+        status=$(rosa describe cluster -c ${var.cluster_name} -o json | grep '"state":' | head -n 1 | cut -d '"' -f4)
+        echo "Current state: $status"
+        if [ "$status" = "waiting" ]; then
+          echo "Cluster is in 'waiting' state. Proceeding with operator roles creation."
+          break
+        fi
+        echo "Still not ready. Sleeping 30 seconds..."
+        sleep 30
+      done
+
+      echo "Creating operator roles..."
+      rosa create operator-roles --cluster=${var.cluster_name} --mode auto --yes
+
+      # 콘솔 URL 추출 및 저장
+      mkdir -p $(dirname ${var.redhat_url_path})
+      rosa describe cluster -c ${var.cluster_name} -o json \
+        | grep '"console":' -A 3 \
+        | grep '"url":' \
+        | cut -d '"' -f4 \
+        | sed 's/console/openshift\\/details\\/s/' \
+        | tee ${var.redhat_url_path} > /dev/null
+      echo "ROSA Console URL: $(cat ${var.redhat_url_path})"
+    EOT
+  }
+}
+
 
 # rosa CLI 설치: rosa CLI가 설치되지 않았다면 설치하는 null_resource
 resource "null_resource" "install_rosa_cli" {
@@ -121,20 +112,53 @@ resource "null_resource" "rosa_init" {
   depends_on = [null_resource.install_rosa_cli]  # rosa_cli가 설치된 후 실행됨
   provisioner "local-exec" {
     command = <<EOT
-      export ROSE_TOKEN="${var.rosa_token}"
-      echo $ROSE_TOKEN | rosa login --token=$ROSE_TOKEN
-      rosa init
-      rosa create account-roles --mode auto
+      rosa login --token=${var.rosa_token}
+      rosa init --yes
+      rosa create account-roles --mode auto --yes
+      rosa create oidc-provider --mode auto --yes
     EOT
   }
 }
 
-# ROSA 클러스터 설치 상태 대기: 클러스터가 완전히 설치될 때까지 기다림
-resource "null_resource" "wait_for_rosa_ready" {
-  depends_on = [null_resource.create_rosa_cluster]
+# oidc_config_id 파일을 생성하는 작업
+resource "null_resource" "fetch_oidc_config_id" {
+  depends_on = [null_resource.rosa_init]
+
+  triggers = {
+    always_run = "${timestamp()}"
+  }
 
   provisioner "local-exec" {
-    command = "rosa wait-for install --cluster=${var.cluster_name}"
+    command = <<EOT
+      rosa login --token=${var.rosa_token}
+      mkdir -p $(dirname ${var.oidc_config_path})
+      rosa list oidc-config --output json \
+        | grep -o '"id":[^,]*' \
+        | head -n 1 \
+        | cut -d':' -f2 \
+        | tr -d ' "' \
+        | tee ${var.oidc_config_path} > /dev/null
+    EOT
+  }
+}
+
+
+# ROSA 클러스터 설치 상태 대기: 클러스터가 완전히 설치될 때까지 기다림
+resource "null_resource" "wait_for_rosa_ready" {
+  depends_on = [
+    null_resource.create_operator_roles
+  ]
+
+  provisioner "local-exec" {
+    command = <<EOT
+      rosa login --token=${var.rosa_token}
+      echo "Waiting for ROSA cluster to be ready..."
+      until rosa describe cluster -c ${var.cluster_name} | grep -q "State:.*ready"; do
+        echo "Cluster is still provisioning... sleeping for 30 seconds"
+        sleep 30
+      done
+      echo "Cluster is ready!"
+    EOT
   }
 }
 

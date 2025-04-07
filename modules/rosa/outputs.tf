@@ -7,3 +7,6 @@ output "rosa_cluster_name" {
   description = "ROSA 클러스터 이름"
   value       = var.cluster_name
 }
+
+
+

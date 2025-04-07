@@ -50,7 +50,7 @@ module "rosa" {
   source             = "../../modules/rosa"
   cluster_name       = var.cluster_name
   region             = var.region
-  rosa_subnet_ids    = module.vpc.private_subnet_ids
+  rosa_subnet_ids    = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
   ec2_subnet_id      = module.vpc.public_subnet_ids[0]
   vpc_id             = module.vpc.vpc_id
   vpc_cidr           = var.vpc_cidr
@@ -60,6 +60,8 @@ module "rosa" {
   min_replicas       = 2
   max_replicas       = 4
   rosa_token         = var.rosa_token
+  oidc_config_path   = "${path.root}/personal/modules/rosa/oidc_config_id.txt"
+  redhat_url_path    = "${path.root}/personal/modules/rosa/details_page_url.txt"
 }
 
 

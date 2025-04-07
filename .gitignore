@@ -15,4 +15,7 @@
 .vscode/
 .idea/
 
+# Ignore personal folder
+personal/
+
 

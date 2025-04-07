@@ -79,18 +79,18 @@ resource "aws_route_table" "public" {
 }
 
 # 프라이빗 라우트 테이블 생성
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.main.id
+# resource "aws_route_table" "private" {
+#   vpc_id = aws_vpc.main.id
 
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat.id
-  }
+#   route {
+#     cidr_block     = "0.0.0.0/0"
+#     nat_gateway_id = aws_nat_gateway.nat.id
+#   }
 
-  tags = {
-    Name = "${var.project_name}-private-rt"
-  }
-}
+#   tags = {
+#     Name = "${var.project_name}-private-rt"
+#   }
+# }
 
 # 퍼블릭 서브넷과 라우트 테이블 연결
 resource "aws_route_table_association" "public" {
@@ -100,11 +100,11 @@ resource "aws_route_table_association" "public" {
 }
 
 # 프라이빗 서브넷과 라우트 테이블 연결
-resource "aws_route_table_association" "private" {
-  count          = length(aws_subnet.private)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
-}
+# resource "aws_route_table_association" "private" {
+#   count          = length(aws_subnet.private)
+#   subnet_id      = aws_subnet.private[count.index].id
+#   route_table_id = aws_route_table.private.id
+# }
 
 # Network ACL 생성
 resource "aws_network_acl" "main" {
@@ -167,3 +167,70 @@ resource "aws_network_acl_association" "public" {
   network_acl_id = aws_network_acl.main.id
   subnet_id      = aws_subnet.public[count.index].id
 }
+
+
+# 프라이빗 서브넷 보안 그룹 생성 (HTTPS 아웃바운드 허용)
+resource "aws_security_group" "private_sg" {
+  name        = "${var.project_name}-private-sg"
+  description = "Security group for private subnet"
+  vpc_id      = aws_vpc.main.id
+
+  # 아웃바운드 규칙 추가: HTTPS (443) 허용
+  # egress {
+  #   cidr_blocks = ["0.0.0.0/0"]
+  #   from_port   = 443
+  #   to_port     = 443
+  #   protocol    = "tcp"
+  # }
+
+  egress {
+    cidr_blocks = ["0.0.0.0/0"]  # 모든 외부 URL에 대한 액세스를 허용
+    from_port   = 0
+    to_port     = 65535
+    protocol    = "tcp"
+  }
+
+  tags = {
+    Name = "${var.project_name}-private-sg"
+  }
+}
+
+resource "aws_network_interface" "private" {
+  count              = length(aws_subnet.private)
+  subnet_id          = aws_subnet.private[count.index].id
+  private_ips        = [count.index == 0 ? "10.0.101.10" : "10.0.102.10"]
+  security_groups    = [aws_security_group.private_sg.id]
+
+  tags = {
+    Name = "Private Network Interface ${count.index + 1}"
+  }
+}
+
+# 프라이빗 서브넷에 보안 그룹 연결 (적용하기 위해 인스턴스에 연결 필요)
+resource "aws_network_interface_sg_attachment" "private_sg_attachment" {
+  count                 = length(aws_subnet.private)
+  security_group_id     = aws_security_group.private_sg.id
+  network_interface_id  = aws_network_interface.private[count.index].id
+}
+
+# 프라이빗 라우트 테이블 생성
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+
+  tags = {
+    Name = "${var.project_name}-private-rt"
+  }
+}
+
+# 프라이빗 서브넷과 라우트 테이블 연결
+resource "aws_route_table_association" "private" {
+  count          = length(aws_subnet.private)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+

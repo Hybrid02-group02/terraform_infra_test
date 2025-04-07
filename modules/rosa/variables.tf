@@ -68,3 +68,13 @@ variable "rosa_token" {
   type        = string
 }
 
+variable "oidc_config_path" {
+  type        = string
+  description = "Path to store OIDC config ID"
+}
+
+variable "redhat_url_path" {
+  type        = string
+  description = "Path to store redhat_url"
+}
+
