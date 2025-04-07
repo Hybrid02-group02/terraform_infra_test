@@ -33,6 +33,14 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+  from_port   = 3000
+  to_port     = 3000
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"] # or 특정 IP
+}
+
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -44,6 +52,26 @@ resource "aws_security_group" "ec2_sg" {
     Name = "${var.project_name}-ec2-sg"
   }
 }
+
+# Grafana EC2
+module "ec2" {
+  source              = "../../modules/ec2"
+  project_name        = var.project_name
+  name                = "webserver"
+  ami_id              = var.ami_id
+  instance_type       = var.instance_type
+  subnet_id           = module.vpc.public_subnet_ids[0]
+  security_group_ids  = [aws_security_group.ec2_sg.id]
+  key_name            = var.key_name
+  associate_public_ip = true
+  user_data           = file("${path.module}/user_data.sh")
+  environment         = var.environment
+
+  # Target Group 등록
+  target_group_arn = module.alb.target_group_arn
+  target_port      = 80
+}
+
 
 # ROSA
 module "rosa" {
