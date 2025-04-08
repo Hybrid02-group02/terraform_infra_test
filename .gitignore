@@ -17,5 +17,6 @@
 
 # Ignore personal folder
 personal/
+*.tar
 
 

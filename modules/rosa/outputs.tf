@@ -8,5 +8,11 @@ output "rosa_cluster_name" {
   value       = var.cluster_name
 }
 
+variable "security_group_id" {
+  description = "Security group ID to be used by ROSA worker nodes"
+  type        = string
+}
+
+
 
 

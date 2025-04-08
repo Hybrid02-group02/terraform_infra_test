@@ -90,6 +90,7 @@ module "rosa" {
   rosa_token         = var.rosa_token
   oidc_config_path   = "${path.root}/personal/modules/rosa/oidc_config_id.txt"
   redhat_url_path    = "${path.root}/personal/modules/rosa/details_page_url.txt"
+  security_group_id  = module.vpc.private_security_group_id
 }
 
 

@@ -43,26 +43,40 @@ resource "aws_subnet" "private" {
   }
 }
 
-# NAT 게이트웨이용 EIP
+# # NAT 게이트웨이용 EIP
+# resource "aws_eip" "nat_eip" {
+#   count = 1
+#   domain = "vpc"
+#   tags = {
+#     Name = "${var.project_name}-nat-eip"
+#   }
+# }
+
+# # NAT 게이트웨이 생성
+# resource "aws_nat_gateway" "nat" {
+#   allocation_id = aws_eip.nat_eip[0].id
+#   subnet_id     = aws_subnet.public[0].id
+
+#   tags = {
+#     Name = "${var.project_name}-nat"
+#   }
+
+#   depends_on = [aws_internet_gateway.igw]
+# }
+
 resource "aws_eip" "nat_eip" {
-  count = 1
+  count  = length(var.azs)
   domain = "vpc"
-  tags = {
-    Name = "${var.project_name}-nat-eip"
-  }
 }
 
-# NAT 게이트웨이 생성
 resource "aws_nat_gateway" "nat" {
-  allocation_id = aws_eip.nat_eip[0].id
-  subnet_id     = aws_subnet.public[0].id
-
-  tags = {
-    Name = "${var.project_name}-nat"
-  }
+  count         = length(var.azs)
+  allocation_id = aws_eip.nat_eip[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
 
   depends_on = [aws_internet_gateway.igw]
 }
+
 
 # 퍼블릭 라우트 테이블 생성
 resource "aws_route_table" "public" {
@@ -113,6 +127,17 @@ resource "aws_network_acl" "main" {
   tags = {
     Name = "${var.project_name}-network-acl"
   }
+}
+
+resource "aws_network_acl_rule" "allow_icmp" {
+  network_acl_id = aws_network_acl.main.id
+  rule_number    = 150
+  egress         = false
+  protocol       = "icmp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 8     # Echo Request
+  to_port        = -1    # 모든 코드 허용
 }
 
 # HTTP (80) 허용
@@ -195,42 +220,35 @@ resource "aws_security_group" "private_sg" {
   }
 }
 
-resource "aws_network_interface" "private" {
-  count              = length(aws_subnet.private)
-  subnet_id          = aws_subnet.private[count.index].id
-  private_ips        = [count.index == 0 ? "10.0.101.10" : "10.0.102.10"]
-  security_groups    = [aws_security_group.private_sg.id]
+# resource "aws_network_interface" "private" {
+#   count              = length(aws_subnet.private)
+#   subnet_id          = aws_subnet.private[count.index].id
+#   private_ips        = [count.index == 0 ? "10.0.101.10" : "10.0.102.10"]
+#   security_groups    = [aws_security_group.private_sg.id]
 
-  tags = {
-    Name = "Private Network Interface ${count.index + 1}"
-  }
-}
-
-# 프라이빗 서브넷에 보안 그룹 연결 (적용하기 위해 인스턴스에 연결 필요)
-resource "aws_network_interface_sg_attachment" "private_sg_attachment" {
-  count                 = length(aws_subnet.private)
-  security_group_id     = aws_security_group.private_sg.id
-  network_interface_id  = aws_network_interface.private[count.index].id
-}
+#   tags = {
+#     Name = "Private Network Interface ${count.index + 1}"
+#   }
+# }
 
 # 프라이빗 라우트 테이블 생성
 resource "aws_route_table" "private" {
+  count  = length(var.private_subnet_cidrs)
   vpc_id = aws_vpc.main.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat.id
+    nat_gateway_id = aws_nat_gateway.nat[count.index].id
   }
 
   tags = {
-    Name = "${var.project_name}-private-rt"
+    Name = "${var.project_name}-private-rt-${count.index}"
   }
 }
 
-# 프라이빗 서브넷과 라우트 테이블 연결
 resource "aws_route_table_association" "private" {
-  count          = length(aws_subnet.private)
+  count          = length(var.private_subnet_cidrs)
   subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
+  route_table_id = aws_route_table.private[count.index].id
 }
 

@@ -36,6 +36,7 @@ resource "null_resource" "create_rosa_cluster" {
           --replicas=${var.min_replicas} \
           --compute-machine-type=${var.instance_type} \
           --oidc-config-id=$oidc_id \
+          --additional-compute-security-group-ids=${var.security_group_id} \
           --yes
       else
         echo "▶ ROSA cluster '${var.cluster_name}' already exists. Skipping creation."
@@ -79,7 +80,7 @@ resource "null_resource" "create_operator_roles" {
         | grep '"console":' -A 3 \
         | grep '"url":' \
         | cut -d '"' -f4 \
-        | sed 's/console/openshift\\/details\\/s/' \
+        | sed 's#console#openshift/details#' \
         | tee ${var.redhat_url_path} > /dev/null
       echo "ROSA Console URL: $(cat ${var.redhat_url_path})"
     EOT

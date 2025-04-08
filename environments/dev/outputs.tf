@@ -11,7 +11,7 @@ output "private_subnet_ids" {
 }
 
 output "nat_gateway_id" {
-  value = module.vpc.nat_gateway_id
+  value = module.vpc.nat_gateway_ids
 }
 
 output "s3_bucket_id" {
