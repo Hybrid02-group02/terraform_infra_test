@@ -79,7 +79,7 @@ module "rosa" {
   cluster_name       = var.cluster_name
   region             = var.region
   rosa_subnet_ids    = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
-  ec2_subnet_id      = module.vpc.public_subnet_ids[0]
+  # ec2_subnet_id      = module.vpc.public_subnet_ids[0]
   vpc_id             = module.vpc.vpc_id
   vpc_cidr           = var.vpc_cidr
   instance_type      = var.rosa_instance_type

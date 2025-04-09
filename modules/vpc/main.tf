@@ -200,13 +200,45 @@ resource "aws_security_group" "private_sg" {
   description = "Security group for private subnet"
   vpc_id      = aws_vpc.main.id
 
-  # 아웃바운드 규칙 추가: HTTPS (443) 허용
-  # egress {
-  #   cidr_blocks = ["0.0.0.0/0"]
-  #   from_port   = 443
-  #   to_port     = 443
-  #   protocol    = "tcp"
-  # }
+  # 🔐 Kubelet, Metrics, Node 간 통신 (예: Prometheus → Kubelet)
+  ingress {
+    from_port   = 10250
+    to_port     = 10259
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]  # 또는 노드들이 있는 서브넷 CIDR
+  }
+
+  # 🌐 OpenShift NodePort 서비스용 (사용자 트래픽을 워커 노드로 전달)
+  ingress {
+    from_port   = 30000
+    to_port     = 32767
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # 🔧 SSH 접근 허용 (운영자 관리 목적, bastion 또는 관리용 IP에서 접근)
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # 📡 Kubernetes API 서버와 통신 (클러스터 내 노드들이 API와 통신)
+  ingress {
+    from_port   = 6443
+    to_port     = 6443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # 🧱 MachineConfig Server (ROSA가 워커 노드 초기 설정 시 사용)
+  ingress {
+    from_port   = 22623
+    to_port     = 22623
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
 
   egress {
     cidr_blocks = ["0.0.0.0/0"]  # 모든 외부 URL에 대한 액세스를 허용

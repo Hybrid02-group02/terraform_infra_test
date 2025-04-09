@@ -58,10 +58,10 @@ variable "enable_autoscaling" {
   type        = bool
 }
 
-variable "ec2_subnet_id" {
-  description = "ROSA 클러스터 설정할 ansible용 ec2 서브넷 ID"
-  type        = string
-}
+# variable "ec2_subnet_id" {
+#   description = "ROSA 클러스터 설정할 ansible용 ec2 서브넷 ID"
+#   type        = string
+# }
 
 variable "rosa_token" {
   description = "ROSA token"
@@ -78,3 +78,7 @@ variable "redhat_url_path" {
   description = "Path to store redhat_url"
 }
 
+variable "security_group_id" {
+  description = "Security group ID to be used by ROSA worker nodes"
+  type        = string
+}
