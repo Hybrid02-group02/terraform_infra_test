@@ -89,21 +89,10 @@ variable "max_replicas" {
   default     = 4
 }
 
-# variable "rosa_subnet_ids" {
-#   description = "ROSA 클러스터가 배포될 서브넷 ID 리스트"
-#   type        = list(string)
-# }
-
 variable "region" {
   description = "region for EC2 instance"
   type        = string
 }
-
-
-# variable "ec2_subnet_id" {
-#   description = "ROSA 클러스터 설정할 ansible용 ec2 서브넷 ID"
-#   type        = string
-# }
 
 variable "rosa_token" {
   description = "ROSA token"

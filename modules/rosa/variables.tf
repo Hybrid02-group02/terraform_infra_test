@@ -26,7 +26,6 @@ variable "rosa_subnet_ids" {
 variable "instance_type" {
   description = "ROSA 노드 그룹의 인스턴스 타입"
   type        = string
-  default     = "m5.large"
 }
 
 variable "min_replicas" {

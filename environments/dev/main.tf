@@ -57,7 +57,7 @@ resource "aws_security_group" "ec2_sg" {
 module "ec2" {
   source              = "../../modules/ec2"
   project_name        = var.project_name
-  name                = "webserver"
+  name                = "Grafana"
   ami_id              = var.ami_id
   instance_type       = var.instance_type
   subnet_id           = module.vpc.public_subnet_ids[0]
@@ -89,7 +89,7 @@ module "rosa" {
   max_replicas       = 4
   rosa_token         = var.rosa_token
   oidc_config_path   = "${path.root}/personal/modules/rosa/oidc_config_id.txt"
-  redhat_url_path    = "${path.root}/personal/modules/rosa/details_page_url.txt"
+  redhat_url_path    = "${path.root}/personal/modules/rosa/openshift_cluster_detail_info.txt"
   security_group_id  = module.vpc.private_security_group_id
 }
 

@@ -4,25 +4,6 @@ kind: Namespace
 metadata:
   name: nginx-hcp
 ---
-# # 🔹 index.html 파일을 담는 ConfigMap 생성
-# #    나중에 nginx 컨테이너의 웹 루트 디렉토리에 마운트됨
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   name: nginx-html
-#   namespace: nginx-hcp
-# data:
-#   index.html: |
-#     <!DOCTYPE html>
-#     <html>
-#     <head>
-#       <title>ROSA HCP Nginx Test</title>
-#     </head>
-#     <body>
-#       <h1>Hello from Latest Nginx on OpenShift</h1>
-#     </body>
-#     </html>
----
 # 🔹 Nginx 설정 ConfigMap (default.conf, nginx.conf)
 apiVersion: v1
 kind: ConfigMap
@@ -149,7 +130,7 @@ spec:
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: nginx-route
+  name: nginx-route-default
   namespace: nginx-hcp
 spec:
   to:
@@ -157,5 +138,17 @@ spec:
     name: nginx-service  # 위에서 정의한 Service와 연결
   port:
     targetPort: http     # Service의 포트 이름과 일치해야 함
-
+# 🔹 커스텀 도메인용 route 설정
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: nginx-route-custom
+  namespace: nginx-hcp
+spec:
+  host: oc.naddong.shop
+  to:
+    kind: Service
+    name: nginx-service
+  port:
+    targetPort: http
 
