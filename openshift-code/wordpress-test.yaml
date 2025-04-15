@@ -1,0 +1,136 @@
+###########################
+# 1. StorageClass 정의 (EBS를 사용하여 동적 프로비저닝)
+# - gp3-csi 스토리지 클래스 사용 (EBS 기반)
+###########################
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3-retain-csi
+provisioner: ebs.csi.aws.com           # AWS EBS CSI 드라이버 사용
+reclaimPolicy: Retain                 # PVC 삭제 시 볼륨을 삭제하지 않고 유지
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: gp3                           # gp3 타입의 EBS 볼륨 사용
+allowVolumeExpansion: true            # 볼륨 확장 가능
+---
+
+###########################
+# 2. 워드프레스 데이터 저장을 위한 PVC 생성
+# - gp3-csi 스토리지 클래스 사용 (EBS 기반)
+# - 5Gi 용량 요청
+###########################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wordpress-pvc
+  namespace: wordpress-aws
+spec:
+  accessModes:
+    - ReadWriteOnce              # 단일 노드에서 읽기/쓰기 허용
+  resources:
+    requests:
+      storage: 5Gi               # 요청하는 저장 용량
+  storageClassName: gp3-retain-csi      # AWS EBS CSI 드라이버 사용
+  volumeName: pvc-b0222aac-589d-4461-ad3a-44b9ffad9740
+---
+
+###########################
+# 3. 워드프레스 애플리케이션을 위한 Deployment
+# - main container는 Apache + PHP가 포함된 WordPress 이미지
+# - MariaDB와 연동을 위한 환경변수 포함
+###########################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress
+  namespace: wordpress-aws
+spec:
+  replicas: 2                           # 워드프레스 인스턴스 수 (1개)
+  selector:
+    matchLabels:
+      app: wordpress                    # 서비스와 매칭되는 라벨
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      dnsPolicy: ClusterFirst            
+      containers:
+        - name: wordpress
+          image: wordpress:latest        # Apache + PHP + WP가 포함된 이미지
+          env:                            # DB 접속 정보 환경변수
+            - name: WORDPRESS_DB_HOST
+              value: mariadb.wordpress-aws.svc.cluster.local
+            - name: WORDPRESS_DB_NAME
+              value: wordpress
+            - name: WORDPRESS_DB_USER
+              value: wordpress
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: user-password
+          ports:
+            - containerPort: 80          # HTTP 포트 노출
+          volumeMounts:
+            - name: wordpress-vol        # html 디렉토리에 볼륨 연결
+              mountPath: /var/www/html
+          securityContext:
+            runAsUser: 0                 # 루트 사용자로 실행 (퍼미션 이슈 방지용)
+      #########################
+      # 3-3. 위에서 정의한 PVC를 실제 Pod에 연결
+      #########################
+      volumes:
+        - name: wordpress-vol
+          persistentVolumeClaim:
+            claimName: wordpress-pvc     # PVC 이름과 일치해야 함
+---
+###########################
+# 4. 워드프레스 서비스 정의
+# - 다른 Pod이 wordpress에 접근 가능하도록 ClusterIP 타입
+# - 라벨로 Deployment와 연결됨
+###########################
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+  namespace: wordpress-aws
+spec:
+  selector:
+    app: wordpress
+  ports:
+    - port: 80               # 서비스 포트
+      targetPort: 80         # 컨테이너 포트와 매핑
+  type: ClusterIP            # 내부 클러스터 통신용
+---
+###########################
+# 5-1. OpenShift 기본 도메인을 이용한 외부 접근 라우트
+###########################
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: wordpress-route-default
+  namespace: wordpress-aws
+spec:
+  to:
+    kind: Service
+    name: wordpress
+  port:
+    targetPort: 80
+---
+###########################
+# 5-2. 사용자 정의 커스텀 도메인으로 외부 접근 라우트
+# - wp.naddong.shop 도메인 사용 (DNS 레코드 설정 필요)
+###########################
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: wordpress-route-custom
+  namespace: wordpress-aws
+spec:
+  host: wp.naddong.shop      # 사용자가 설정한 도메인 (DNS에 등록 필요)
+  to:
+    kind: Service
+    name: wordpress
+  port:
+    targetPort: 80

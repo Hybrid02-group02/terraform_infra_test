@@ -136,8 +136,8 @@ resource "aws_network_acl_rule" "allow_icmp" {
   protocol       = "icmp"
   rule_action    = "allow"
   cidr_block     = "0.0.0.0/0"
-  from_port      = 8     # Echo Request
-  to_port        = -1    # 모든 코드 허용
+  from_port      = 8  # Echo Request
+  to_port        = -1 # 모든 코드 허용
 }
 
 # HTTP (80) 허용
@@ -205,7 +205,7 @@ resource "aws_security_group" "private_sg" {
     from_port   = 10250
     to_port     = 10259
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]  # 또는 노드들이 있는 서브넷 CIDR
+    cidr_blocks = [var.vpc_cidr] # 또는 노드들이 있는 서브넷 CIDR
   }
 
   # 🌐 OpenShift NodePort 서비스용 (사용자 트래픽을 워커 노드로 전달)
@@ -241,7 +241,7 @@ resource "aws_security_group" "private_sg" {
   }
 
   egress {
-    cidr_blocks = ["0.0.0.0/0"]  # 모든 외부 URL에 대한 액세스를 허용
+    cidr_blocks = ["0.0.0.0/0"] # 모든 외부 URL에 대한 액세스를 허용
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"

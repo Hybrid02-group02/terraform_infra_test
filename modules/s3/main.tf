@@ -1,4 +1,4 @@
-	resource "aws_s3_bucket" "main" { # s3 버킷 생성
+resource "aws_s3_bucket" "main" { # s3 버킷 생성
   bucket = "${var.project_name}-${var.name}"
 
   tags = {

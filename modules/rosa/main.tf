@@ -36,7 +36,7 @@ resource "null_resource" "install_rosa_cli" {
 
 # rosa 초기화: rosa CLI를 로그인하고 필요한 계정 역할을 생성하는 작업
 resource "null_resource" "rosa_init" {
-  depends_on = [null_resource.install_rosa_cli]  # rosa_cli가 설치된 후 실행됨
+  depends_on = [null_resource.install_rosa_cli] # rosa_cli가 설치된 후 실행됨
 
   triggers = {
     always_run = "${timestamp()}"
@@ -77,11 +77,11 @@ resource "null_resource" "fetch_oidc_config_id" {
 # OpenShift 클러스터 리소스: ROSA 클러스터를 Terraform을 통해 생성
 resource "null_resource" "create_rosa_cluster" {
   depends_on = [
-    null_resource.install_rosa_cli,  # rosa_cli 설치 후 실행됨
-    null_resource.rosa_init,  # rosa_init이 완료된 후 실행됨
-    null_resource.fetch_oidc_config_id,  # oidc config ID가 준비된 후 실행됨
+    null_resource.install_rosa_cli,     # rosa_cli 설치 후 실행됨
+    null_resource.rosa_init,            # rosa_init이 완료된 후 실행됨
+    null_resource.fetch_oidc_config_id, # oidc config ID가 준비된 후 실행됨
   ]
-  
+
   triggers = {
     always_run = "${timestamp()}"
   }
@@ -159,7 +159,7 @@ resource "null_resource" "wait_for_rosa_ready" {
 
   triggers = {
     always_run = "${timestamp()}"
-  }  
+  }
 
   provisioner "local-exec" {
     command = <<EOT
@@ -177,7 +177,7 @@ resource "null_resource" "wait_for_rosa_ready" {
 # 콘솔 URL 및 oc 로그인 명령어 추출
 resource "null_resource" "fetch_console_url" {
   depends_on = [
-    null_resource.wait_for_rosa_ready  # 클러스터가 ready 상태가 된 후 실행
+    null_resource.wait_for_rosa_ready # 클러스터가 ready 상태가 된 후 실행
   ]
 
   triggers = {

@@ -19,7 +19,7 @@ resource "aws_route53_record" "root_record" {
 # 서브도메인(www.~) A 레코드 생성
 resource "aws_route53_record" "www_record" {
   zone_id = aws_route53_zone.main.zone_id
-  name    = "www.${var.domain_name}"   # www.naddong.shop
+  name    = "www.${var.domain_name}" # www.naddong.shop
   type    = "A"
 
   alias {

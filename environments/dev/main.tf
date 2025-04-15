@@ -34,11 +34,11 @@ resource "aws_security_group" "ec2_sg" {
   }
 
   ingress {
-  from_port   = 3000
-  to_port     = 3000
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"] # or 특정 IP
-}
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # or 특정 IP
+  }
 
 
   egress {
@@ -75,10 +75,10 @@ module "ec2" {
 
 # ROSA
 module "rosa" {
-  source             = "../../modules/rosa"
-  cluster_name       = var.cluster_name
-  region             = var.region
-  rosa_subnet_ids    = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
+  source          = "../../modules/rosa"
+  cluster_name    = var.cluster_name
+  region          = var.region
+  rosa_subnet_ids = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
   # ec2_subnet_id      = module.vpc.public_subnet_ids[0]
   vpc_id             = module.vpc.vpc_id
   vpc_cidr           = var.vpc_cidr
@@ -96,13 +96,13 @@ module "rosa" {
 
 # S3
 module "s3" {
-  source              = "../../modules/s3"
-  project_name        = var.project_name
-  name                = "static-assets"
-  environment         = var.environment
-  versioning_enabled  = true
-  enable_sse          = true
-  force_destroy       = true
+  source             = "../../modules/s3"
+  project_name       = var.project_name
+  name               = "static-assets"
+  environment        = var.environment
+  versioning_enabled = true
+  enable_sse         = true
+  force_destroy      = true
 }
 
 # 보안 그룹 - ALB용
@@ -132,42 +132,42 @@ resource "aws_security_group" "alb_sg" {
 
 # ALB
 module "alb" {
-  source                    = "../../modules/alb"
-  project_name              = var.project_name
-  name                      = "app"
-  environment               = var.environment
-  vpc_id                    = module.vpc.vpc_id
-  subnet_ids                = module.vpc.public_subnet_ids
-  security_group_ids        = [aws_security_group.alb_sg.id]
-  target_port               = 80
-  target_protocol           = "HTTP"
-  health_check_path         = "/"
-  health_check_protocol     = "HTTP"
+  source                     = "../../modules/alb"
+  project_name               = var.project_name
+  name                       = "app"
+  environment                = var.environment
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.public_subnet_ids
+  security_group_ids         = [aws_security_group.alb_sg.id]
+  target_port                = 80
+  target_protocol            = "HTTP"
+  health_check_path          = "/"
+  health_check_protocol      = "HTTP"
   enable_deletion_protection = false
-  internal                  = false
+  internal                   = false
 }
 
 
 # route 53
 module "route53" {
-  source      = "../../modules/route53"
-  
-  domain_name  = var.route53_domain_name            # 가비아에서 등록한 도메인
-  alb_dns_name = module.alb.alb_dns_name            # ALB DNS 이름
-  alb_zone_id  = module.alb.alb_zone_id             # ALB Hosted Zone ID
+  source = "../../modules/route53"
+
+  domain_name  = var.route53_domain_name # 가비아에서 등록한 도메인
+  alb_dns_name = module.alb.alb_dns_name # ALB DNS 이름
+  alb_zone_id  = module.alb.alb_zone_id  # ALB Hosted Zone ID
 
   depends_on = [module.alb]
 }
 
 # waf
 module "waf" {
-  source         = "../../modules/waf"
-  project_name   = var.project_name
-  name           = "web"
-  environment    = var.environment
-  scope          = "REGIONAL"
-  alb_arn        = module.alb.alb_arn
-  associate_alb  = true
+  source        = "../../modules/waf"
+  project_name  = var.project_name
+  name          = "web"
+  environment   = var.environment
+  scope         = "REGIONAL"
+  alb_arn       = module.alb.alb_arn
+  associate_alb = true
 }
 
 

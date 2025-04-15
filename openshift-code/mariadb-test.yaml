@@ -1,0 +1,111 @@
+###################
+# Namespace 지정
+# Secret 구성
+# Secret → env 매핑
+# StorageClass 정의 (Retain)
+# PVC 정의 및 연결
+# Service 라벨 매칭
+# MariaDB 환경변수 구성
+# 볼륨 마운트
+###################
+
+# 1. 워드프레스 전용 네임스페이스 생성
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wordpress-aws
+---
+# 2. MariaDB 접속 정보(비밀번호 등)를 담은 Secret 정의
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-secret
+  namespace: wordpress-aws
+type: Opaque
+data:
+  root-password: QmltZWFsQDEyMzQ=     # "Bimeal@1234" base64 인코딩
+  user-password: QmltZWFsQDEyMzQ=
+---
+# 3. StorageClass 정의 (PVC에서 참조하며, 볼륨 삭제 방지를 위해 ReclaimPolicy: Retain 설정)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3-retain-csi
+provisioner: ebs.csi.aws.com           # AWS EBS CSI 드라이버
+reclaimPolicy: Retain                 # 삭제해도 볼륨을 유지 (Retain) ← 핵심 설정!
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: gp3
+allowVolumeExpansion: true
+---
+# 4. MariaDB 데이터가 저장될 퍼시스턴트 볼륨 요청 (PVC)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-pvc
+  namespace: wordpress-aws
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: gp3-retain-csi     # 위에서 정의한 StorageClass 참조
+  volumeName: pvc-0e7677ae-0749-46fc-a96c-dbdeefc6da98  # pvc가 중복 생성되지 않도록 추후에 정의
+---
+# 5. MariaDB Pod에 접근하기 위한 내부 서비스 정의 (ClusterIP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+  namespace: wordpress-aws
+spec:
+  selector:
+    app: mariadb
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+# 6. MariaDB 애플리케이션을 실행할 Deployment 정의
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  namespace: wordpress-aws
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:10.5
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: root-password
+            - name: MYSQL_DATABASE
+              value: wordpress
+            - name: MYSQL_USER
+              value: wordpress
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: user-password
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: db-storage
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: mariadb-pvc
