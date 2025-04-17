@@ -69,6 +69,7 @@ variable "rosa_instance_type" {
   description = "ROSA 노드 그룹의 인스턴스 타입"
   type        = string
   default     = "m5.xlarge"
+  # default     = "m6g.xlarge"
 }
 
 variable "enable_autoscaling" {

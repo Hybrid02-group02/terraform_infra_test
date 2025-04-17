@@ -3,6 +3,7 @@
 # Secret 구성
 # Secret → env 매핑
 # StorageClass 정의 (Retain)
+# PV 정의
 # PVC 정의 및 연결
 # Service 라벨 매칭
 # MariaDB 환경변수 구성
@@ -38,7 +39,28 @@ parameters:
   type: gp3
 allowVolumeExpansion: true
 ---
-# 4. MariaDB 데이터가 저장될 퍼시스턴트 볼륨 요청 (PVC)
+# 4. PV 정의 (MariaDB용 EBS 수동 연결)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mariadb-pv                    # PV 리소스 이름
+spec:
+  capacity:
+    storage: 5Gi                      # EBS 볼륨 크기
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce                   # 단일 노드에서 읽기/쓰기
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: gp3-retain-csi
+  claimRef:
+    name: mariadb-pvc                # PVC 이름 (바인딩 대상)
+    namespace: wordpress-aws         # PVC가 있는 네임스페이스
+  csi:
+    driver: ebs.csi.aws.com
+    volumeHandle: vol-09640056975c08104  # 실제 EBS 볼륨 ID
+    fsType: ext4
+---
+# 5. MariaDB 데이터가 저장될 퍼시스턴트 볼륨 요청 (PVC)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -50,10 +72,10 @@ spec:
   resources:
     requests:
       storage: 5Gi
-  storageClassName: gp3-retain-csi     # 위에서 정의한 StorageClass 참조
-  volumeName: pvc-0e7677ae-0749-46fc-a96c-dbdeefc6da98  # pvc가 중복 생성되지 않도록 추후에 정의
+  storageClassName: gp3-retain-csi
+  volumeName: mariadb-pv              # 위에서 정의한 PV와 연결
 ---
-# 5. MariaDB Pod에 접근하기 위한 내부 서비스 정의 (ClusterIP)
+# 6. MariaDB Pod에 접근하기 위한 내부 서비스 정의 (ClusterIP)
 apiVersion: v1
 kind: Service
 metadata:
@@ -66,7 +88,7 @@ spec:
     - port: 3306
       targetPort: 3306
 ---
-# 6. MariaDB 애플리케이션을 실행할 Deployment 정의
+# 7. MariaDB 애플리케이션을 실행할 Deployment 정의
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -82,6 +104,8 @@ spec:
       labels:
         app: mariadb
     spec:
+      nodeSelector:
+        topology.kubernetes.io/zone: ap-northeast-2c    
       containers:
         - name: mariadb
           image: mariadb:10.5

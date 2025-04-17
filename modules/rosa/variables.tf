@@ -57,11 +57,6 @@ variable "enable_autoscaling" {
   type        = bool
 }
 
-# variable "ec2_subnet_id" {
-#   description = "ROSA 클러스터 설정할 ansible용 ec2 서브넷 ID"
-#   type        = string
-# }
-
 variable "rosa_token" {
   description = "ROSA token"
   type        = string

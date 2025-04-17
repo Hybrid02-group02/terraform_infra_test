@@ -46,8 +46,8 @@ resource "null_resource" "rosa_init" {
     command = <<EOT
       rosa login --token=${var.rosa_token}
       rosa init --yes
-      rosa create account-roles --mode auto --yes
-      rosa create oidc-provider --mode auto --yes
+      rosa create account-roles --mode auto --hosted-cp --yes
+      rosa create oidc-config --mode auto --yes
     EOT
   }
 }
@@ -70,6 +70,10 @@ resource "null_resource" "fetch_oidc_config_id" {
         | cut -d':' -f2 \
         | tr -d ' "' \
         | tee ${var.oidc_config_path} > /dev/null
+
+      # OIDC Provider 생성 시, 해당 ID를 사용하여 자동으로 OIDC Provider 생성
+      oidc_id=$(cat ${var.oidc_config_path})
+      rosa create oidc-provider --oidc-config-id $oidc_id --mode auto --yes
     EOT
   }
 }
@@ -190,8 +194,8 @@ resource "null_resource" "fetch_console_url" {
 
       echo "▶ Creating cluster-admin user..."
       rosa create admin -c ${var.cluster_name} \
-        | grep "oc login" | tee -a ${var.redhat_url_path}
-
+        | grep "oc login" | tee ${var.redhat_url_path}
+      echo "" >> ${var.redhat_url_path}
 
       echo ""
       echo "▶ Fetching OpenShift console URL after cluster is ready..."
@@ -218,11 +222,9 @@ resource "null_resource" "fetch_console_url" {
         exit 1
       fi
 
-      echo "ROSA Console URL: $url" | tee ${var.redhat_url_path}
+      echo "ROSA Console URL: $url" | tee -a ${var.redhat_url_path}
 
       echo "✅ Console URL and login command saved to: ${var.redhat_url_path}"
     EOT
   }
 }
-
-

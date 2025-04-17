@@ -1,22 +1,48 @@
 ###########################
-# 1. StorageClass 정의 (EBS를 사용하여 동적 프로비저닝)
-# - gp3-csi 스토리지 클래스 사용 (EBS 기반)
+# 0. 기존 EBS 볼륨을 사용한 PV 정의 (정적 프로비저닝)
+# - Retain 정책 적용
+# - gp3-retain-csi StorageClass 매칭
+###########################
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: wordpress-pv                  # PV 리소스의 이름
+spec:
+  capacity:
+    storage: 5Gi                      # EFS 볼륨 크기 (EFS는 동적으로 확장 가능)
+  accessModes:
+    - ReadWriteMany                   # 여러 파드에서 읽기/쓰기 허용 (EFS에서는 ReadWriteMany 사용)
+  persistentVolumeReclaimPolicy: Retain  # PVC 삭제 시에도 EFS 볼륨 유지
+  storageClassName: efs-csi           # PVC에서 참조할 StorageClass 이름 (EFS 사용)
+  volumeMode: Filesystem
+  claimRef:
+    name: wordpress-pvc              # PVC 이름 (PVC와 연결됨)
+    namespace: wordpress-aws         # PVC가 위치한 네임스페이스
+  csi:
+    driver: efs.csi.aws.com           # EFS CSI 드라이버 사용
+    volumeHandle: fs-099ef6dca73d3386e         # EFS 파일 시스템 ID (AWS에서 EFS 파일 시스템 ID 가져오기)
+---
+
+###########################
+# 1. StorageClass 정의 (EFS를 사용하여 동적 프로비저닝)
+# - efs-csi 스토리지 클래스 사용 (EFS 기반)
 ###########################
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: gp3-retain-csi
-provisioner: ebs.csi.aws.com           # AWS EBS CSI 드라이버 사용
+  name: efs-csi
+provisioner: efs.csi.aws.com           # AWS EFS CSI 드라이버 사용
 reclaimPolicy: Retain                 # PVC 삭제 시 볼륨을 삭제하지 않고 유지
 volumeBindingMode: WaitForFirstConsumer
 parameters:
-  type: gp3                           # gp3 타입의 EBS 볼륨 사용
+  provisioner: efs.csi.aws.com
+  fsType: nfs                          # NFS 프로토콜 사용
 allowVolumeExpansion: true            # 볼륨 확장 가능
 ---
 
 ###########################
 # 2. 워드프레스 데이터 저장을 위한 PVC 생성
-# - gp3-csi 스토리지 클래스 사용 (EBS 기반)
+# - 위에서 정의한 동적 EFS PV와 연결
 # - 5Gi 용량 요청
 ###########################
 apiVersion: v1
@@ -26,12 +52,11 @@ metadata:
   namespace: wordpress-aws
 spec:
   accessModes:
-    - ReadWriteOnce              # 단일 노드에서 읽기/쓰기 허용
+    - ReadWriteMany                   # 여러 파드에서 읽기/쓰기 허용 (EFS에서 지원)
   resources:
     requests:
-      storage: 5Gi               # 요청하는 저장 용량
-  storageClassName: gp3-retain-csi      # AWS EBS CSI 드라이버 사용
-  volumeName: pvc-b0222aac-589d-4461-ad3a-44b9ffad9740
+      storage: 5Gi                    # 요청하는 저장 용량 (EFS는 용량 확장이 가능)
+  storageClassName: efs-csi           # EFS StorageClass 사용
 ---
 
 ###########################
@@ -45,7 +70,7 @@ metadata:
   name: wordpress
   namespace: wordpress-aws
 spec:
-  replicas: 2                           # 워드프레스 인스턴스 수 (1개)
+  replicas: 1                           # 워드프레스 인스턴스 수 (2개)
   selector:
     matchLabels:
       app: wordpress                    # 서비스와 매칭되는 라벨
@@ -73,10 +98,17 @@ spec:
           ports:
             - containerPort: 80          # HTTP 포트 노출
           volumeMounts:
-            - name: wordpress-vol        # html 디렉토리에 볼륨 연결
+            - name: wordpress-vol        # html 디렉토리에 EFS 볼륨 연결
               mountPath: /var/www/html
+          resources:
+            requests:  
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"           
           securityContext:
-            runAsUser: 0                 # 루트 사용자로 실행 (퍼미션 이슈 방지용)
+            runAsUser: 0                 # 루트 사용자로 실행 (퍼미션 이슈 방지용)            
       #########################
       # 3-3. 위에서 정의한 PVC를 실제 Pod에 연결
       #########################
@@ -85,6 +117,7 @@ spec:
           persistentVolumeClaim:
             claimName: wordpress-pvc     # PVC 이름과 일치해야 함
 ---
+
 ###########################
 # 4. 워드프레스 서비스 정의
 # - 다른 Pod이 wordpress에 접근 가능하도록 ClusterIP 타입
@@ -103,6 +136,7 @@ spec:
       targetPort: 80         # 컨테이너 포트와 매핑
   type: ClusterIP            # 내부 클러스터 통신용
 ---
+
 ###########################
 # 5-1. OpenShift 기본 도메인을 이용한 외부 접근 라우트
 ###########################
@@ -118,6 +152,7 @@ spec:
   port:
     targetPort: 80
 ---
+
 ###########################
 # 5-2. 사용자 정의 커스텀 도메인으로 외부 접근 라우트
 # - wp.naddong.shop 도메인 사용 (DNS 레코드 설정 필요)
