@@ -102,7 +102,9 @@ resource "null_resource" "create_rosa_cluster" {
           --region=${var.region} \
           --subnet-ids=${join(",", var.rosa_subnet_ids)} \
           --machine-cidr=${var.vpc_cidr} \
-          --replicas=${var.min_replicas} \
+          --enable-autoscaling \
+          --min-replicas=${var.min_replicas} \
+          --max-replicas=${var.max_replicas} \
           --compute-machine-type=${var.instance_type} \
           --oidc-config-id=$oidc_id \
           --additional-compute-security-group-ids=${var.security_group_id} \

@@ -31,7 +31,7 @@ variable "instance_type" {
 variable "min_replicas" {
   description = "ROSA 클러스터 최소 노드 개수"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "max_replicas" {
