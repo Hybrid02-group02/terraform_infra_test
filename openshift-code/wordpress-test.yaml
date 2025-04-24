@@ -70,7 +70,7 @@ metadata:
   name: wordpress
   namespace: wordpress-aws
 spec:
-  replicas: 1                           # 워드프레스 인스턴스 수 (2개)
+  replicas: 2                           # 워드프레스 인스턴스 수 (2개)
   selector:
     matchLabels:
       app: wordpress                    # 서비스와 매칭되는 라벨
@@ -106,7 +106,7 @@ spec:
               memory: "128Mi"
             limits:
               cpu: "500m"
-              memory: "256Mi"           
+              memory: "512Mi"           
           securityContext:
             runAsUser: 0                 # 루트 사용자로 실행 (퍼미션 이슈 방지용)            
       #########################

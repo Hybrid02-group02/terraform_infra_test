@@ -9,11 +9,11 @@ spec:
     kind: Deployment
     name: wordpress
   minReplicas: 1                      # 최소 복제본 수
-  maxReplicas: 10                     # 최대 복제본 수
+  maxReplicas: 20                     # 최대 복제본 수
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 10        # 평균 CPU 사용률 50%를 목표로 스케일링
+        averageUtilization: 30        # 평균 CPU 사용률 50%를 목표로 스케일링

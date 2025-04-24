@@ -1,0 +1,67 @@
+serviceAccount:
+  create: true
+  name: fluent-bit-sa
+
+input:
+  tail:
+    enabled: true
+    path: /var/log/containers/*.log
+    parser: docker
+    tag: kube.*
+    refresh_interval: 5
+    rotate_wait: 30
+    multiline: off
+
+filters:
+  parser:
+    enabled: true
+    name: parser
+    match: "kube.*"
+    key_name: log
+    parser: json
+
+  grep:
+    enabled: true
+    name: grep
+    match: "kube.*"
+    regex: log PSA
+
+output:
+  slack:
+    enabled: true
+    webhook_url: "https://hooks.slack.com/services/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"
+    channel: "#test-alert"
+    username: "psa-monitor"
+
+containers:
+  - name: fluent-bit
+    image: fluent/fluent-bit:latest
+    securityContext:
+      # runAsNonRoot: true
+      runAsUser: 0
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      seccompProfile:
+        type: RuntimeDefault
+
+    # 수정된 volume 사용
+    volumeMounts:
+      - mountPath: /var/log
+        name: log-volume
+        readOnly: true
+
+volumes:
+  - name: log-volume
+    emptyDir: {}   # hostPath 대신 emptyDir 사용
+
+securityContext:
+  # runAsNonRoot: true
+  runAsUser: 0
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
